@@ -11,6 +11,57 @@ This page collects the setup steps and the problems testers have run into so far
 
 [claims]: https://github.com/ubiquitarianism/leonida/issues/14
 
+## Quick start on Windows
+
+The shortest path from a fresh Windows PC to a result you can post. The rest of this page has the details and the
+problems testers have hit; the steps below link to them.
+
+1. Install, in this order:
+   - Visual Studio 2022 (Community or Build Tools) with "Desktop development with C++", the "C++ CMake tools for
+     Windows" component and Windows SDK 10.0.26100 or newer.
+   - The [Vulkan SDK](https://vulkan.lunarg.com/). It sets `VULKAN_SDK` and puts `spirv-as`, `spirv-val`,
+     `glslangValidator` and `vulkaninfo` on `PATH`.
+   - [Python 3.12+](https://www.python.org/downloads/), with "Add python.exe to PATH" ticked, and git.
+   - Optional but needed for the full suite: `llvm-mc` with the AMDGPU target (see [What you need](#what-you-need)).
+     `powershell -ExecutionPolicy Bypass -File scripts\build_llvm_mc.ps1` builds one and sets `LLVM_MC` for you.
+2. Open a new PowerShell window (so it sees the new `PATH`), clone the repository and build the test programs:
+
+   ```powershell
+   git clone --recursive https://github.com/ubiquitarianism/leonida
+   cd leonida
+   powershell -ExecutionPolicy Bypass -File scripts\build_runtime.ps1
+   ```
+
+   The script uses the newest Visual Studio it finds. If Visual Studio 2026 is also installed and the link step
+   fails there, build from a "Developer PowerShell for VS 2022" instead:
+   `cmake -S runtime -B runtime\build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLEONIDA_REQUIRE_VULKAN=ON`, then
+   `cmake --build runtime\build`.
+3. Run the suite twice, once as your GPU runs it and once with wave64 emulation (this matters on NVIDIA and Intel,
+   whose subgroups are 32 wide, see [GPUs with 32-wide subgroups](#gpus-with-32-wide-subgroups-nvidia-intel-apple)):
+
+   ```powershell
+   python -I scripts\run_gpu_tests.py
+   $env:LEONIDA_W64_EMULATE = "1"; python -I scripts\run_gpu_tests.py; Remove-Item Env:LEONIDA_W64_EMULATE
+   ```
+
+   Without `llvm-mc`, add `--disasm-dir tests/semantic/fixtures/disasm` to both commands. That runs the
+   pre-disassembled subset only, so say "subset" in your result.
+4. Collect what the record needs:
+
+   ```powershell
+   git rev-parse HEAD                      # the commit you built
+   vulkaninfo --summary                    # GPU name, driver version, Vulkan version
+   python -I tools\vk_subgroup_info.py     # subgroup range (min_subgroup_size, max_subgroup_size)
+   cmd /c ver                              # Windows build
+   ```
+
+5. Copy a Windows file in [`gpu-test-results/`](../gpu-test-results) (`RTX3060Ti-Windows.txt` is a complete one), fill
+   in your GPU, driver, subgroup range, OS build, commit, tool versions and the last line each run printed
+   (`N/M passed, K skipped`), and list every `FAIL` line. Then follow [Posting your result](#posting-your-result).
+
+A `FAIL` is worth reporting, not a reason to stop: check [Known problems](#known-problems) first, and say in the
+record whether it matched a row there.
+
 ## What you need
 
 - **Python 3.11+.** `scripts/run_gpu_tests.py` needs at least 3.10.
