@@ -62,6 +62,22 @@ problems testers have hit; the steps below link to them.
 A `FAIL` is worth reporting, not a reason to stop: check [Known problems](#known-problems) first, and say in the
 record whether it matched a row there.
 
+### Testing someone else's pull request
+
+Once your GPU has a record, testing open pull requests on it helps more than a second record: review and testing
+are what most pull requests wait for. Pick one that changes the translator, the runtime or a GPU test, then:
+
+```powershell
+git fetch origin pull/<N>/head:pr-<N>
+git checkout pr-<N>
+powershell -ExecutionPolicy Bypass -File scripts\build_runtime.ps1   # always rebuild after switching
+python -I scripts\run_gpu_tests.py                                  # add --filter <name> for the tests it touches
+```
+
+Run `main` the same way for comparison (`git checkout main`, rebuild, run). Then comment on the pull request with
+one line per mode, in the form `<GPU>, <driver>, Windows <build>: X of Y passed, K skipped, F failed (native);
+main at <commit>: ...`, plus any `FAIL` lines that differ from `main`.
+
 ## What you need
 
 - **Python 3.11+.** `scripts/run_gpu_tests.py` needs at least 3.10.
